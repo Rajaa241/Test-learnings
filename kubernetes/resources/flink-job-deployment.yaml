@@ -1,0 +1,41 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: sample-flink-job
+  namespace: default
+spec:
+  image: flink:1.20.0-java17
+  flinkVersion: v1_20
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+    env.java.opts: "--add-opens java.base/java.util=ALL-UNNAMED -Dkafka.config=/opt/flink/usrlib/sample-flink-job/config/kafka.config -Dgrpc.config=/opt/flink/usrlib/sample-flink-job/config/grpc.config -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    rest.port: "8081"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  job:
+    jarURI: local:///opt/flink/usrlib/sample-flink-job/jar/sample-flink-job-0.1.0.jar
+    entryClass: com.workforcesoftware.job.KafkaToKafkaFlinkJob
+    parallelism: 2
+    upgradeMode: stateless
+    state: running
+  podTemplate:
+    spec:
+      volumes:
+        - name: flink-job-volume
+          persistentVolumeClaim:
+            claimName: flink-job-pvc
+      containers:
+        - name: flink-main-container
+          ports:
+            - containerPort: 5005
+              name: debug-port
+          volumeMounts:
+            - name: flink-job-volume
+              mountPath: /opt/flink/usrlib
